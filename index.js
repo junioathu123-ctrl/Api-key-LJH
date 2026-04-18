@@ -49,7 +49,7 @@ client.on("messageCreate", async (msg) => {
 
     const key = gerarKey();
 
-    msg.reply(`🔑 Key gerada:`${key}\``);
+    msg.reply(`🔑 Key gerada: ${key}\``);
   }
 });
 
