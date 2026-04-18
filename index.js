@@ -31,7 +31,7 @@ client.once("ready", () => {
   console.log(`✅ Logado como ${client.user.tag}`);
 });
 
-// ================= COMANDOS =================
+// ================= COMANDO =================
 client.on("messageCreate", async (msg) => {
   if (msg.author.bot) return;
 
@@ -39,17 +39,14 @@ client.on("messageCreate", async (msg) => {
 
     const admins = getAdmins();
 
-    // DEBUG (pode remover depois)
     console.log("ENV:", process.env.ADMIN_IDS);
     console.log("ADMINS:", admins);
     console.log("SEU ID:", msg.author.id);
 
-    // PERMISSÃO
-    if (!admins.includes(msg.author.id)) {
+    if (!admins.includes(String(msg.author.id))) {
       return msg.reply(`Sem permissão ❌\nSeu ID: ${msg.author.id}`);
     }
 
-    // GERAR KEY
     const key = gerarKey();
 
     msg.reply(`🔑 Key gerada:\n\`${key}\``);
