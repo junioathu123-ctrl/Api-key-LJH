@@ -1,12 +1,6 @@
-import {
-  Client,
-  GatewayIntentBits
-} from "discord.js";
+require("dotenv").config();
 
-import fs from "fs-extra";
-import dotenv from "dotenv";
-
-dotenv.config();
+const { Client, GatewayIntentBits } = require("discord.js");
 
 const client = new Client({
   intents: [
@@ -16,75 +10,51 @@ const client = new Client({
   ]
 });
 
-const getKeys = () => fs.readJsonSync("./keys.json");
-const saveKeys = (data) => fs.writeJsonSync("./keys.json", data, { spaces: 2 });
+// ================= ADMINS =================
+const getAdmins = () => {
+  if (!process.env.ADMIN_IDS) return [];
+  return process.env.ADMIN_IDS.split(",").map(id => id.trim());
+};
 
-// 🔑 CONVERTER TEMPO
-function parseTime(input) {
-  const match = input.match(/^(\d+)(s|m|h|d|me)$/);
-  if (!match) return null;
-
-  const value = parseInt(match[1]);
-  const unit = match[2];
-
-  switch (unit) {
-    case "s": return value * 1000;
-    case "m": return value * 60 * 1000;
-    case "h": return value * 60 * 60 * 1000;
-    case "d": return value * 24 * 60 * 60 * 1000;
-    case "me": return value * 30 * 24 * 60 * 60 * 1000;
-    default: return null;
+// ================= GERAR KEY =================
+function gerarKey() {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let key = "LJH-";
+  for (let i = 0; i < 8; i++) {
+    key += chars.charAt(Math.floor(Math.random() * chars.length));
   }
+  return key;
 }
 
-// 🔑 COMANDO GERAR
+// ================= BOT ONLINE =================
+client.once("ready", () => {
+  console.log(`✅ Logado como ${client.user.tag}`);
+});
+
+// ================= COMANDOS =================
 client.on("messageCreate", async (msg) => {
   if (msg.author.bot) return;
 
   if (msg.content.startsWith("!gerar")) {
 
-    if (msg.author.id !== process.env.ADMIN_ID) {
-      return msg.reply("Sem permissão ❌");
+    const admins = getAdmins();
+
+    // DEBUG (pode remover depois)
+    console.log("ENV:", process.env.ADMIN_IDS);
+    console.log("ADMINS:", admins);
+    console.log("SEU ID:", msg.author.id);
+
+    // PERMISSÃO
+    if (!admins.includes(msg.author.id)) {
+      return msg.reply(`Sem permissão ❌\nSeu ID: ${msg.author.id}`);
     }
 
-    const args = msg.content.split(" ");
-    const tempoInput = args[1];
+    // GERAR KEY
+    const key = gerarKey();
 
-    let expira = null;
-
-    // se tiver tempo → temporária
-    if (tempoInput) {
-      const tempoMs = parseTime(tempoInput);
-
-      if (!tempoMs) {
-        return msg.reply("Formato inválido ❌\nEx: 5s, 5m, 1h, 1d, 1me");
-      }
-
-      expira = Date.now() + tempoMs;
-    }
-
-    // 🔥 KEY LJH
-    const key = "LJH-" + Math.random().toString(36).substring(2, 10).toUpperCase();
-
-    const keys = getKeys();
-
-    keys[key] = {
-      user: null,
-      used: false,
-      expiresAt: expira
-    };
-
-    saveKeys(keys);
-
-    msg.reply(
-      `🔑 Key:\n${key}\n` +
-      (expira ? `⏳ ${tempoInput}` : `♾️ Permanente`)
-    );
+    msg.reply(`🔑 Key gerada:\n\`${key}\``);
   }
 });
 
-client.once("ready", () => {
-  console.log("LJH Key Bot online 🔥");
-});
-
+// ================= LOGIN =================
 client.login(process.env.TOKEN);
