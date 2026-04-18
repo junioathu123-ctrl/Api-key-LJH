@@ -10,28 +10,25 @@ const client = new Client({
   ]
 });
 
-// ================= ADMINS =================
 const getAdmins = () => {
-  if (!process.env.ADMIN_IDS) return [];
-  return process.env.ADMIN_IDS.split(",").map(id => id.trim());
+  return process.env.ADMIN_IDS
+    ? process.env.ADMIN_IDS.split(",").map(id => id.trim())
+    : [];
 };
 
-// ================= GERAR KEY =================
 function gerarKey() {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
   let key = "LJH-";
   for (let i = 0; i < 8; i++) {
-    key += chars.charAt(Math.floor(Math.random() * chars.length));
+    key += chars[Math.floor(Math.random() * chars.length)];
   }
   return key;
 }
 
-// ================= BOT ONLINE =================
 client.once("ready", () => {
-  console.log(`✅ Logado como ${client.user.tag}`);
+  console.log(`✅ Bot online: ${client.user.tag}`);
 });
 
-// ================= COMANDO =================
 client.on("messageCreate", async (msg) => {
   if (msg.author.bot) return;
 
@@ -39,19 +36,14 @@ client.on("messageCreate", async (msg) => {
 
     const admins = getAdmins();
 
-    console.log("ENV:", process.env.ADMIN_IDS);
-    console.log("ADMINS:", admins);
-    console.log("SEU ID:", msg.author.id);
-
-    if (!admins.includes(String(msg.author.id))) {
-      return msg.reply(`Sem permissão ❌\nSeu ID: ${msg.author.id}`);
+    if (!admins.includes(msg.author.id)) {
+      return msg.reply("❌ Sem permissão");
     }
 
     const key = gerarKey();
 
-    msg.reply(`🔑 Key gerada: ${key}\`);
+    msg.reply("❄️ **Key gerada**: " + key);
   }
 });
 
-// ================= LOGIN =================
-client.login(process.env.TOKEN);
+client.login(process.env.TOKEN); 
