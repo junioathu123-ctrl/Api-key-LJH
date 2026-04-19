@@ -36,14 +36,15 @@ client.on("messageCreate", async (msg) => {
 
     const admins = getAdmins();
 
-    if (!ADMIN_IDS.includes(msg.author.id)) {
-  return msg.reply("<:pode_no_man:1495446894732640346> Você não tem permissão!");
-}
+    // ✅ CORRIGIDO AQUI
+    if (!admins.includes(msg.author.id)) {
+      return msg.reply("<:pode_no_man:1495446894732640346> Você não tem permissão!");
+    }
 
     const key = gerarKey();
 
-msg.reply(`<a:purple_flame:1495444801536135298> Key gerada: \`${key}\``);  
+    msg.reply(`<a:purple_flame:1495444801536135298> Key gerada: \`${key}\``);
   }
 });
 
-client.login(process.env.TOKEN); 
+client.login(process.env.TOKEN);
