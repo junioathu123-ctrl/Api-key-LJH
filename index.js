@@ -1,6 +1,38 @@
 require("dotenv").config();
 
+const express = require("express");
 const { Client, GatewayIntentBits } = require("discord.js");
+
+const app = express();
+
+// ================= API =================
+
+// rota pra testar
+app.get("/", (req, res) => {
+  res.send("API ONLINE");
+});
+
+// rota de verificar key
+app.get("/verify", (req, res) => {
+  const key = req.query.key;
+
+  if (!key) return res.send("no_key");
+
+  // exemplo de key válida
+  if (key.startsWith("LJH-")) {
+    return res.send("valid");
+  } else {
+    return res.send("invalid");
+  }
+});
+
+// porta do Railway (OBRIGATÓRIO)
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log("🌐 API rodando na porta " + PORT);
+});
+
+// ================= BOT DISCORD =================
 
 const client = new Client({
   intents: [
@@ -36,14 +68,13 @@ client.on("messageCreate", async (msg) => {
 
     const admins = getAdmins();
 
-    // ✅ CORRIGIDO AQUI
     if (!admins.includes(msg.author.id)) {
-      return msg.reply("<:pode_no_man:1495446894732640346> Você não tem permissão!");
+      return msg.reply("❌ Você não tem permissão!");
     }
 
     const key = gerarKey();
 
-    msg.reply(`<a:purple_flame:1495444801536135298> Key gerada: \`${key}\``);
+    msg.reply(`🔥 Key gerada: \`${key}\``);
   }
 });
 
