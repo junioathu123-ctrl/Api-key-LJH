@@ -69,12 +69,12 @@ client.on("messageCreate", async (msg) => {
     const admins = getAdmins();
 
     if (!admins.includes(msg.author.id)) {
-      return msg.reply("❌ Você não tem permissão!");
+      return msg.reply("<:pode_no_man:1495446894732640346> Você não tem permissão!");
     }
 
     const key = gerarKey();
 
-    msg.reply(`🔥 Key gerada: \`${key}\``);
+   msg.reply(`<a:purple_flame:1495444801536135298> Key gerada: \`${key}\``); 
   }
 });
 
