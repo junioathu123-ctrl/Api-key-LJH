@@ -112,7 +112,7 @@ client.on("messageCreate", async (msg) => {
 
     saveKeys(keys);
 
-    msg.reply(`<a:9504_purple_flame:1458553679547203786> Key gerada: \`${key}\``);
+    msg.reply(`<a:purple_flame:1495444801536135298> Key gerada: \`${key}\``);
   }
 });
 
