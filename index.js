@@ -84,7 +84,7 @@ function gerarKey() {
   return key;
 }
 
-client.once("clientReady", () => {
+client.once("ready", () => {
   console.log(`✅ Bot online: ${client.user.tag}`);
 });
 
