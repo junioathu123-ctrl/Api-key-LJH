@@ -28,6 +28,10 @@ app.get("/", (req, res) => {
 });
 
 app.post("/verify", async (req, res) => {
+
+  // 🔥 ADICIONADO (SÓ ISSO)
+  console.log("🔥 CHEGOU REQUEST:", req.body);
+
   const { key, hwid } = req.body;
 
   const k = await Key.findOne({ key });
