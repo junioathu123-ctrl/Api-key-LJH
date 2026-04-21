@@ -1,77 +1,66 @@
 require("dotenv").config();
 
 const express = require("express");
-const fs = require("fs");
+const mongoose = require("mongoose");
 const { Client, GatewayIntentBits } = require("discord.js");
 
 const app = express();
 app.use(express.json());
 
-const KEYS_FILE = "./keys.json";
+// ================= MONGODB =================
+mongoose.connect(process.env.MONGO_URI)
+.then(() => console.log("🟢 MongoDB conectado"))
+.catch(err => console.log("❌ Erro Mongo:", err));
 
-// ================= FUNÇÕES =================
+// ================= MODEL =================
+const KeySchema = new mongoose.Schema({
+  key: String,
+  created: Number,
+  hwid: String,
+  active: { type: Boolean, default: true }
+});
 
-function loadKeys() {
-  if (!fs.existsSync(KEYS_FILE)) return {};
-  return JSON.parse(fs.readFileSync(KEYS_FILE));
-}
-
-function saveKeys(data) {
-  fs.writeFileSync(KEYS_FILE, JSON.stringify(data, null, 2));
-}
-
-function gerarKey() {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-  let key = "LJH-";
-  for (let i = 0; i < 8; i++) {
-    key += chars[Math.floor(Math.random() * chars.length)];
-  }
-  return key;
-}
+const Key = mongoose.model("Key", KeySchema);
 
 // ================= API =================
-
-// teste
 app.get("/", (req, res) => {
   res.send("API ONLINE");
 });
 
-// verificar key + hwid
-app.post("/verify", (req, res) => {
+app.post("/verify", async (req, res) => {
   const { key, hwid } = req.body;
 
-  const keys = loadKeys();
-  const data = keys[key];
+  const k = await Key.findOne({ key });
 
-  if (!data) return res.json({ status: "invalid" });
+  if (!k) return res.json({ status: "invalid" });
+  if (!k.active) return res.json({ status: "invalid" });
 
-  if (data.expires && Date.now() > data.expires) {
-    return res.json({ status: "expired" });
-  }
-
-  // PRIMEIRO USO → salva hwid
-  if (!data.hwid) {
-    data.hwid = hwid;
-    saveKeys(keys);
-    return res.json({ status: "ok", first: true });
-  }
-
-  // HWID DIFERENTE → bloqueia
-  if (data.hwid !== hwid) {
+  if (k.hwid && k.hwid !== hwid) {
     return res.json({ status: "hwid_mismatch" });
+  }
+
+  if (!k.hwid) {
+    k.hwid = hwid;
+    await k.save();
   }
 
   res.json({ status: "ok" });
 });
 
-// porta Railway
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log("🌐 API rodando na porta " + PORT);
+// ================= PAINEL =================
+app.get("/panel", async (req, res) => {
+  const keys = await Key.find();
+
+  let html = "<h1>PAINEL DE KEYS</h1>";
+
+  keys.forEach(k => {
+    html += `<p>🔑 ${k.key} | ✅ ${k.active} | 🖥️ ${k.hwid || "null"}</p>`;
+  });
+
+  res.send(html);
 });
 
-// ================= BOT =================
-
+// ================= DISCORD =================
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -86,34 +75,69 @@ const getAdmins = () => {
     : [];
 };
 
+function gerarKey() {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let key = "LJH-";
+  for (let i = 0; i < 8; i++) {
+    key += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return key;
+}
+
 client.once("clientReady", () => {
   console.log(`✅ Bot online: ${client.user.tag}`);
 });
 
+// GERAR KEY
 client.on("messageCreate", async (msg) => {
   if (msg.author.bot) return;
 
+  const admins = getAdmins();
+
   if (msg.content.startsWith("!gerar")) {
 
-    const admins = getAdmins();
-
     if (!admins.includes(msg.author.id)) {
-      return msg.reply("<:pode_no_man:1495446894732640346> Sem permissão");
+      return msg.reply("<:pode_no_man:1495446894732640346> Sem permissão!");
     }
 
     const key = gerarKey();
-    const keys = loadKeys();
 
-    keys[key] = {
+    await Key.create({
+      key,
       created: Date.now(),
-      expires: null, // pode colocar tempo depois
-      hwid: null
-    };
+      hwid: null,
+      active: true
+    });
 
-    saveKeys(keys);
+    msg.reply(`<a:purple_flame:1495444801536135298> Key: \`${key}\``);
+  }
 
-    msg.reply(`<a:purple_flame:1495444801536135298> Key gerada: \`${key}\``);
+  // RESET KEY
+  if (msg.content.startsWith("!reset")) {
+
+    if (!admins.includes(msg.author.id)) {
+      return msg.reply("Sem permissão!");
+    }
+
+    const args = msg.content.split(" ");
+    const key = args[1];
+
+    const k = await Key.findOne({ key });
+
+    if (!k) return msg.reply("Key não encontrada");
+
+    k.active = false;
+    k.hwid = null;
+    await k.save();
+
+    msg.reply("💀 Key resetada");
   }
 });
 
 client.login(process.env.TOKEN);
+
+// ================= SERVER =================
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log("🌐 API rodando na porta " + PORT);
+});
