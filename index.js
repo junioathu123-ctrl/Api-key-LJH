@@ -97,7 +97,7 @@ client.on("messageCreate", async (msg) => {
   if (msg.content.startsWith("!gerar")) {
 
     if (!admins.includes(msg.author.id)) {
-      return msg.reply("<:pode_no_man:1495446894732640346> Sem permissão!");
+      return msg.reply("<:pode_no_man:1495446894732640346> Sem permissão");
     }
 
     const key = gerarKey();
