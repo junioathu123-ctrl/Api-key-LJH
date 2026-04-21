@@ -1,38 +1,76 @@
 require("dotenv").config();
 
 const express = require("express");
+const fs = require("fs");
 const { Client, GatewayIntentBits } = require("discord.js");
 
 const app = express();
+app.use(express.json());
+
+const KEYS_FILE = "./keys.json";
+
+// ================= FUNÇÕES =================
+
+function loadKeys() {
+  if (!fs.existsSync(KEYS_FILE)) return {};
+  return JSON.parse(fs.readFileSync(KEYS_FILE));
+}
+
+function saveKeys(data) {
+  fs.writeFileSync(KEYS_FILE, JSON.stringify(data, null, 2));
+}
+
+function gerarKey() {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let key = "LJH-";
+  for (let i = 0; i < 8; i++) {
+    key += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return key;
+}
 
 // ================= API =================
 
-// rota pra testar
+// teste
 app.get("/", (req, res) => {
   res.send("API ONLINE");
 });
 
-// rota de verificar key
-app.get("/verify", (req, res) => {
-  const key = req.query.key;
+// verificar key + hwid
+app.post("/verify", (req, res) => {
+  const { key, hwid } = req.body;
 
-  if (!key) return res.send("no_key");
+  const keys = loadKeys();
+  const data = keys[key];
 
-  // exemplo de key válida
-  if (key.startsWith("LJH-")) {
-    return res.send("valid");
-  } else {
-    return res.send("invalid");
+  if (!data) return res.json({ status: "invalid" });
+
+  if (data.expires && Date.now() > data.expires) {
+    return res.json({ status: "expired" });
   }
+
+  // PRIMEIRO USO → salva hwid
+  if (!data.hwid) {
+    data.hwid = hwid;
+    saveKeys(keys);
+    return res.json({ status: "ok", first: true });
+  }
+
+  // HWID DIFERENTE → bloqueia
+  if (data.hwid !== hwid) {
+    return res.json({ status: "hwid_mismatch" });
+  }
+
+  res.json({ status: "ok" });
 });
 
-// porta do Railway (OBRIGATÓRIO)
+// porta Railway
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log("🌐 API rodando na porta " + PORT);
 });
 
-// ================= BOT DISCORD =================
+// ================= BOT =================
 
 const client = new Client({
   intents: [
@@ -48,16 +86,7 @@ const getAdmins = () => {
     : [];
 };
 
-function gerarKey() {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-  let key = "LJH-";
-  for (let i = 0; i < 8; i++) {
-    key += chars[Math.floor(Math.random() * chars.length)];
-  }
-  return key;
-}
-
-client.once("ready", () => {
+client.once("clientReady", () => {
   console.log(`✅ Bot online: ${client.user.tag}`);
 });
 
@@ -69,12 +98,21 @@ client.on("messageCreate", async (msg) => {
     const admins = getAdmins();
 
     if (!admins.includes(msg.author.id)) {
-      return msg.reply("<:pode_no_man:1495446894732640346>  Sem permissão!");
+      return msg.reply("<:pode_no_man:1495446894732640346> Sem permissão!");
     }
 
     const key = gerarKey();
+    const keys = loadKeys();
 
-   msg.reply(`<a:purple_flame:1495444801536135298> Key gerada: \`${key}\``); 
+    keys[key] = {
+      created: Date.now(),
+      expires: null, // pode colocar tempo depois
+      hwid: null
+    };
+
+    saveKeys(keys);
+
+    msg.reply(`<a:9504_purple_flame:1458553679547203786> Key gerada: \`${key}\``);
   }
 });
 
