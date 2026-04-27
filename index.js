@@ -168,8 +168,4 @@ client.login(process.env.TOKEN);
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log("🌐 API rodando na porta " + PORT);
-}); NÃO MEXA EM NADA DEIXE COMO ESTÁ SÓ ADICIONE ISSO DE ENTREGAR AÍ QUERO ASSIM:  Obrigado pela preferencia🔥
-
-Script - `loadstring(game:HttpGet("https://pastebin.com/raw/fyjD6v8n"))()`
-
-Key - `(key gerada)`
+});
