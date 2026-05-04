@@ -80,10 +80,9 @@ const client = new Client({
   ]
 });
 
+// 🔥 SEU ID FIXO AQUI
 const getAdmins = () => {
-  return process.env.ADMIN_IDS
-    ? process.env.ADMIN_IDS.split(",").map(id => id.trim())
-    : [];
+  return ["1299724738582548502"];
 };
 
 function gerarKey() {
