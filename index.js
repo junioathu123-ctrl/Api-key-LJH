@@ -83,10 +83,15 @@ const client = new Client({
 // 🔥 SEU ID FIXO AQUI
 const getAdmins = () => {
   if (!process.env.ADMIN_IDS) return [];
+  return process.env.ADMIN_IDS.split(",").map(id => id.trim());
+};
 
-  return process.env.ADMIN_IDS
-    .split(",")
-    .map(id => id.trim());
+const isOwner = (id) => {
+  return id === String(process.env.OWNER_ID);
+};
+
+const isAdmin = (id) => {
+  return isOwner(id) || getAdmins().includes(id);
 };
 
 function gerarKey() {
