@@ -12,13 +12,16 @@ mongoose.connect(process.env.MONGO_URI)
 .then(() => console.log("🟢 MongoDB conectado"))
 .catch(err => console.log("❌ Erro Mongo:", err));
 
+// 🔥 DEBUG MONGO
+mongoose.set("debug", true);
+
 // ================= MODEL =================
 const KeySchema = new mongoose.Schema({
   key: String,
   created: Number,
   hwid: String,
   active: { type: Boolean, default: true },
-  expireAt: Number // 🔥 necessário
+  expireAt: Number
 });
 
 const Key = mongoose.model("Key", KeySchema);
@@ -43,32 +46,57 @@ app.get("/", (req, res) => {
 });
 
 app.post("/verify", async (req, res) => {
-  console.log("🔥 REQUEST:", req.body);
+  try {
+    const { key, hwid } = req.body;
 
-  const { key, hwid } = req.body;
+    console.log("\n========== VERIFY ==========");
+    console.log("Key recebida:", key);
+    console.log("HWID recebido:", hwid);
 
-  const k = await Key.findOne({ key });
+    const k = await Key.findOne({ key });
 
-  if (!k) return res.json({ status: "invalid" });
-  if (!k.active) return res.json({ status: "invalid" });
+    console.log("Resultado Mongo:", k);
 
-  // expiração
-  if (k.expireAt && Date.now() > k.expireAt) {
-    k.active = false;
-    await k.save();
-    return res.json({ status: "invalid" });
+    if (!k) {
+      console.log("❌ KEY NÃO EXISTE");
+      return res.json({ status: "invalid" });
+    }
+
+    if (!k.active) {
+      console.log("❌ KEY INATIVA");
+      return res.json({ status: "invalid" });
+    }
+
+    if (k.expireAt && Date.now() > k.expireAt) {
+      console.log("❌ KEY EXPIRADA");
+
+      k.active = false;
+      await k.save();
+
+      return res.json({ status: "invalid" });
+    }
+
+    if (k.hwid && k.hwid !== hwid) {
+      console.log("❌ HWID DIFERENTE");
+
+      return res.json({ status: "hwid_mismatch" });
+    }
+
+    if (!k.hwid) {
+      console.log("🔗 Vinculando HWID");
+      k.hwid = hwid;
+      await k.save();
+    }
+
+    console.log("✅ KEY VÁLIDA");
+
+    res.json({ status: "ok" });
+
+  } catch (err) {
+    console.log("❌ ERRO VERIFY:", err);
+
+    res.json({ status: "error" });
   }
-
-  if (k.hwid && k.hwid !== hwid) {
-    return res.json({ status: "hwid_mismatch" });
-  }
-
-  if (!k.hwid) {
-    k.hwid = hwid;
-    await k.save();
-  }
-
-  res.json({ status: "ok" });
 });
 
 // ================= DISCORD =================
@@ -80,26 +108,19 @@ const client = new Client({
   ]
 });
 
-// 🔥 SEU ID FIXO AQUI
 const getAdmins = () => {
   if (!process.env.ADMIN_IDS) return [];
   return process.env.ADMIN_IDS.split(",").map(id => id.trim());
 };
 
-const isOwner = (id) => {
-  return id === String(process.env.OWNER_ID);
-};
-
-const isAdmin = (id) => {
-  return isOwner(id) || getAdmins().includes(id);
-};
-
 function gerarKey() {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
   let key = "LJH-";
+
   for (let i = 0; i < 8; i++) {
     key += chars[Math.floor(Math.random() * chars.length)];
   }
+
   return key;
 }
 
@@ -142,17 +163,17 @@ client.on("messageCreate", async (msg) => {
       created: Date.now(),
       hwid: null,
       active: true,
-      expireAt: expireAt
+      expireAt
     });
 
     msg.reply(`<a:purple_flame:1495444801536135298> Key: \`${key}\``);
   }
 
-  // RESET (NÃO MEXI)
+  // RESET
   if (msg.content.startsWith("!reset")) {
 
     if (!admins.includes(msg.author.id)) {
-      return msg.reply("Sem permissão!");
+      return msg.reply("<:pode_no_man:1495446894732640346> Sem permissão!");
     }
 
     const args = msg.content.split(" ");
@@ -164,16 +185,18 @@ client.on("messageCreate", async (msg) => {
 
     k.active = false;
     k.hwid = null;
+
     await k.save();
 
     msg.reply("💀 Key resetada");
   }
 });
 
-client.login(process.env.TOKEN);
-
 // ================= SERVER =================
 const PORT = process.env.PORT || 3000;
+
 app.listen(PORT, () => {
   console.log("🌐 API rodando na porta " + PORT);
 });
+
+client.login(process.env.TOKEN);
