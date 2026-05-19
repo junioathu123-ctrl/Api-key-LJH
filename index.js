@@ -12,7 +12,6 @@ mongoose.connect(process.env.MONGO_URI)
 .then(() => console.log("🟢 MongoDB conectado"))
 .catch(err => console.log("❌ Erro Mongo:", err));
 
-// 🔥 DEBUG MONGO
 mongoose.set("debug", true);
 
 // ================= MODEL =================
@@ -28,7 +27,9 @@ const Key = mongoose.model("Key", KeySchema);
 
 // ================= TIME =================
 function parseTime(str) {
+
   const match = str.match(/(\d+)([smhd])/);
+
   if (!match) return null;
 
   const value = parseInt(match[1]);
@@ -45,57 +46,88 @@ app.get("/", (req, res) => {
   res.send("API ONLINE");
 });
 
+// ================= VERIFY =================
 app.post("/verify", async (req, res) => {
+
   try {
+
     const { key, hwid } = req.body;
 
     console.log("\n========== VERIFY ==========");
-    console.log("Key recebida:", key);
-    console.log("HWID recebido:", hwid);
+    console.log("KEY:", key);
+    console.log("HWID:", hwid);
 
     const k = await Key.findOne({ key });
 
-    console.log("Resultado Mongo:", k);
+    console.log("RESULTADO:", k);
 
+    // KEY NÃO EXISTE
     if (!k) {
+
       console.log("❌ KEY NÃO EXISTE");
-      return res.json({ status: "invalid" });
+
+      return res.json({
+        success: false
+      });
     }
 
+    // KEY INATIVA
     if (!k.active) {
+
       console.log("❌ KEY INATIVA");
-      return res.json({ status: "invalid" });
+
+      return res.json({
+        success: false
+      });
     }
 
+    // KEY EXPIRADA
     if (k.expireAt && Date.now() > k.expireAt) {
+
       console.log("❌ KEY EXPIRADA");
 
       k.active = false;
+
       await k.save();
 
-      return res.json({ status: "invalid" });
+      return res.json({
+        success: false
+      });
     }
 
+    // HWID DIFERENTE
     if (k.hwid && k.hwid !== hwid) {
+
       console.log("❌ HWID DIFERENTE");
 
-      return res.json({ status: "hwid_mismatch" });
+      return res.json({
+        success: false
+      });
     }
 
+    // VINCULAR HWID
     if (!k.hwid) {
-      console.log("🔗 Vinculando HWID");
+
+      console.log("🔗 VINCULANDO HWID");
+
       k.hwid = hwid;
+
       await k.save();
     }
 
     console.log("✅ KEY VÁLIDA");
 
-    res.json({ status: "ok" });
+    return res.json({
+      success: true
+    });
 
   } catch (err) {
+
     console.log("❌ ERRO VERIFY:", err);
 
-    res.json({ status: "error" });
+    return res.json({
+      success: false
+    });
   }
 });
 
@@ -109,15 +141,23 @@ const client = new Client({
 });
 
 const getAdmins = () => {
+
   if (!process.env.ADMIN_IDS) return [];
-  return process.env.ADMIN_IDS.split(",").map(id => id.trim());
+
+  return process.env.ADMIN_IDS
+    .split(",")
+    .map(id => id.trim());
 };
 
+// ================= GERAR KEY =================
 function gerarKey() {
+
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
   let key = "LJH-";
 
   for (let i = 0; i < 8; i++) {
+
     key += chars[Math.floor(Math.random() * chars.length)];
   }
 
@@ -125,28 +165,32 @@ function gerarKey() {
 }
 
 client.once("ready", () => {
+
   console.log(`✅ Bot online: ${client.user.tag}`);
 });
 
 // ================= COMANDOS =================
 client.on("messageCreate", async (msg) => {
+
   if (msg.author.bot) return;
 
   const admins = getAdmins();
 
-  // GERAR KEY
+  // ================= GERAR =================
   if (msg.content.startsWith("!gerar")) {
 
     if (!admins.includes(msg.author.id)) {
-      return msg.reply("<:pode_no_man:1495446894732640346> Sem permissão");
+      return msg.reply("❌ Sem permissão");
     }
 
     const args = msg.content.split(" ");
+
     const time = args[1];
 
     let expireAt = null;
 
     if (time) {
+
       const duration = parseTime(time);
 
       if (!duration) {
@@ -166,22 +210,25 @@ client.on("messageCreate", async (msg) => {
       expireAt
     });
 
-    msg.reply(`<a:purple_flame:1495444801536135298> Key: \`${key}\``);
+    msg.reply(`🔑 Key: \`${key}\``);
   }
 
-  // RESET
+  // ================= RESET =================
   if (msg.content.startsWith("!reset")) {
 
     if (!admins.includes(msg.author.id)) {
-      return msg.reply("<:pode_no_man:1495446894732640346> Sem permissão!");
+      return msg.reply("❌ Sem permissão");
     }
 
     const args = msg.content.split(" ");
+
     const key = args[1];
 
     const k = await Key.findOne({ key });
 
-    if (!k) return msg.reply("Key não encontrada");
+    if (!k) {
+      return msg.reply("❌ Key não encontrada");
+    }
 
     k.active = false;
     k.hwid = null;
@@ -196,7 +243,9 @@ client.on("messageCreate", async (msg) => {
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
+
   console.log("🌐 API rodando na porta " + PORT);
 });
 
+// ================= LOGIN =================
 client.login(process.env.TOKEN);
